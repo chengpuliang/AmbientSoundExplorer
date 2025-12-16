@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.ambientsoundexplorer.ui.theme.AmbientSoundExplorerTheme
+import com.example.ambientsoundexplorer.ui.theme.ApiService
 import com.example.ambientsoundexplorer.ui.theme.ReminderScreen
 import com.example.ambientsoundexplorer.ui.theme.SoundScreen
 
@@ -34,6 +35,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             var currentPage by remember { mutableStateOf(Page.sounds) }
+            val apiService = ApiService("http://57.180.75.22:8000","YZ5TNCN55K")
             AmbientSoundExplorerTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -66,7 +68,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding)
                     ) {
                         when (currentPage) {
-                            Page.sounds -> SoundScreen()
+                            Page.sounds -> SoundScreen(apiService)
                             Page.reminders -> ReminderScreen()
                         }
                     }
