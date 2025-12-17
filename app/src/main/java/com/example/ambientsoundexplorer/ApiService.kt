@@ -1,14 +1,12 @@
-package com.example.ambientsoundexplorer.ui.theme
+package com.example.ambientsoundexplorer
 
 import org.json.JSONArray
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
 class ApiService(val endpoint: String, val apiKey: String) {
     enum class sortOrder {ascending,descending}
-    fun getMusicList(sort: sortOrder,filter_term: String = "",action: (result: MutableList<Music>) -> Unit) {
+    fun getMusicList(sort: sortOrder, filter_term: String = "", action: (result: MutableList<Music>) -> Unit) {
         println("fuck")
         val connection =
             URL("$endpoint/music/list?sort_order=${sort.name}&filter_term=${filter_term}").openConnection() as HttpURLConnection
