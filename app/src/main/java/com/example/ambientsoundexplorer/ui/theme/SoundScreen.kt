@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ambientsoundexplorer.ApiService
 import com.example.ambientsoundexplorer.Music
+import com.example.ambientsoundexplorer.PageViewModel
+import com.example.ambientsoundexplorer.PlayerScreen
 import com.example.ambientsoundexplorer.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -45,7 +47,7 @@ import kotlinx.coroutines.launch
 
 
 @Composable
-fun SoundScreen(apiService: ApiService) {
+fun SoundScreen(apiService: ApiService, pageViewModel: PageViewModel) {
     val scope = rememberCoroutineScope()
     var searchText by remember { mutableStateOf("") }
     val data = remember { mutableStateListOf<Music>() }
@@ -143,6 +145,9 @@ fun SoundScreen(apiService: ApiService) {
         data.forEach { music ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
+                onClick = {
+                    pageViewModel.push { PlayerScreen(pageViewModel, apiService, music) }
+                },
                 modifier = Modifier.padding(0.dp, 6.dp)
             ) {
                 Row(

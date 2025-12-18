@@ -86,7 +86,7 @@ fun ReminderScreen(apiService: ApiService) {
                             checked = it
                             scope.launch {
                                 reminder.enabled = it
-                                reminder = apiService.patchReminder(reminder)
+                                checked = apiService.patchReminder(reminder).enabled
                             }
                         }
                     )

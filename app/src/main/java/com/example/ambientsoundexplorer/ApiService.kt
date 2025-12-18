@@ -1,5 +1,7 @@
 package com.example.ambientsoundexplorer
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -65,16 +67,16 @@ class ApiService(val endpoint: String, val apiKey: String) {
         withContext(Dispatchers.IO) {
             val connection =
                 URL("$endpoint/reminders/${reminder.reminder_id}").openConnection() as HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("X-HTTP-Method-Override", "PATCH");
+            connection.requestMethod = "PATCH"
             connection.setRequestProperty("X-API-KEY", apiKey)
-            OutputStreamWriter(connection.outputStream).write(
+            connection.setRequestProperty("Content-Type","application/json");
+            OutputStreamWriter(connection.outputStream).apply{write(
                 JSONObject().apply {
                     put("hour", reminder.hour)
                     put("minute", reminder.minute)
                     put("enabled", reminder.enabled)
                 }.toString()
-            )
+            );close()}
             val data = connection.inputStream.bufferedReader().readText()
             val obj = JSONObject(data)
             connection.disconnect()
@@ -85,6 +87,18 @@ class ApiService(val endpoint: String, val apiKey: String) {
                 music_id = obj.getInt("music_id"),
                 enabled = obj.getBoolean("enabled")
             )
+        }
+
+    suspend fun getMusicPicture(music_id: Int): Bitmap =
+        withContext(Dispatchers.IO) {
+            val connection =
+                URL("$endpoint/music/picture?music_id=$music_id").openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("X-API-KEY", apiKey)
+            connection.setRequestProperty("accept", "image/jpeg")
+            val result = BitmapFactory.decodeStream(connection.inputStream)
+            connection.disconnect()
+            result
         }
 }
 
