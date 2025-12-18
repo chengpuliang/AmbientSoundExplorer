@@ -23,14 +23,14 @@ import com.example.ambientsoundexplorer.ui.theme.AmbientSoundExplorerTheme
 import com.example.ambientsoundexplorer.ui.theme.ReminderScreen
 import com.example.ambientsoundexplorer.ui.theme.SoundScreen
 
-enum class Page {sounds,reminders}
+enum class Page { sounds, reminders }
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             var currentPage by remember { mutableStateOf(Page.sounds) }
-            val apiService = ApiService("http://57.180.75.22:8000","YZ5TNCN55K")
+            val apiService = ApiService("http://57.180.75.22:8000", "YZ5TNCN55K")
             AmbientSoundExplorerTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -42,9 +42,12 @@ class MainActivity : ComponentActivity() {
                                     currentPage = Page.sounds
                                 },
                                 icon = {
-                                    Icon(painter = painterResource(R.drawable.outline_music_note_24),"")
+                                    Icon(
+                                        painter = painterResource(R.drawable.outline_music_note_24),
+                                        ""
+                                    )
                                 },
-                                label = {Text("環境音效")}
+                                label = { Text("環境音效") }
                             )
                             NavigationBarItem(
                                 selected = currentPage == Page.reminders,
@@ -52,9 +55,9 @@ class MainActivity : ComponentActivity() {
                                     currentPage = Page.reminders
                                 },
                                 icon = {
-                                    Icon(painter = painterResource(R.drawable.outline_timer_24),"")
+                                    Icon(painter = painterResource(R.drawable.outline_timer_24), "")
                                 },
-                                label = {Text("提醒")}
+                                label = { Text("提醒") }
                             )
                         }
                     }
@@ -64,7 +67,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         when (currentPage) {
                             Page.sounds -> SoundScreen(apiService)
-                            Page.reminders -> ReminderScreen()
+                            Page.reminders -> ReminderScreen(apiService)
                         }
                     }
                 }

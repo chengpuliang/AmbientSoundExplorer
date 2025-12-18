@@ -1,9 +1,7 @@
 package com.example.ambientsoundexplorer.ui.theme
 
 import android.media.AudioAttributes
-import android.media.MediaController2
 import android.media.MediaPlayer
-import android.media.session.MediaController
 import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ambientsoundexplorer.ApiService
 import com.example.ambientsoundexplorer.Music
-import com.example.ambientsoundexplorer.R;
+import com.example.ambientsoundexplorer.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -47,12 +46,15 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SoundScreen(apiService: ApiService) {
+    val scope = rememberCoroutineScope()
     var searchText by remember { mutableStateOf("") }
     val data = remember { mutableStateListOf<Music>() }
     var sortOrder by remember { mutableStateOf(ApiService.sortOrder.ascending) }
     var loading by remember { mutableStateOf(true) }
     val context = LocalContext.current
-    val headers = HashMap<String,String>().apply { put("X-API-KEY",apiService.apiKey) }
+    val headers = HashMap<String, String>().apply { put("X-API-KEY", apiService.apiKey) }
+    var playingId by remember { mutableStateOf(-1) }
+    val mediaController = android.widget.MediaController(context)
     val player: MediaPlayer = remember { MediaPlayer() }.apply {
         setOnPreparedListener {
             it.start()
@@ -62,17 +64,15 @@ fun SoundScreen(apiService: ApiService) {
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build()
         )
-    }
-    //val mediaController = android.widget.MediaController(context).apply { setMediaPlayer(playe) }
-    var playingId by remember { mutableStateOf(-1) }
-    LaunchedEffect(Unit) {
-        GlobalScope.launch (Dispatchers.IO){
-            apiService.getMusicList(sortOrder,action = { music ->
-                data.clear()
-                data.addAll(music)
-                loading = false
-            })
+        setOnCompletionListener {
+            playingId = -1
         }
+    }
+    LaunchedEffect(searchText) {
+        loading = true
+        data.clear()
+        data.addAll(apiService.getMusicList(sortOrder, searchText))
+        loading = false
     }
     DisposableEffect(Unit) {
         onDispose {
@@ -80,13 +80,15 @@ fun SoundScreen(apiService: ApiService) {
         }
     }
     Column(
-        modifier = Modifier.padding(20.dp,0.dp)
+        modifier = Modifier.padding(20.dp, 0.dp)
     ) {
-        Row (
+        Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(0.dp,10.dp).height(40.dp)
+            modifier = Modifier
+                .padding(0.dp, 10.dp)
+                .height(40.dp)
         ) {
-            Text (
+            Text(
                 text = "環境音效",
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 24.sp,
@@ -95,17 +97,20 @@ fun SoundScreen(apiService: ApiService) {
             IconButton(
                 onClick = {
                     loading = true
-                    sortOrder = if (sortOrder == ApiService.sortOrder.ascending) ApiService.sortOrder.descending else ApiService.sortOrder.ascending
-                    GlobalScope.launch (Dispatchers.IO){
-                        apiService.getMusicList(sortOrder,action = { music ->
-                            data.clear()
-                            data.addAll(music)
-                            loading = false
-                        })
+                    sortOrder =
+                        if (sortOrder == ApiService.sortOrder.ascending) ApiService.sortOrder.descending else ApiService.sortOrder.ascending
+                    scope.launch(Dispatchers.IO) {
+                        data.clear()
+                        data.addAll(apiService.getMusicList(sortOrder))
+                        loading = false
                     }
                 },
             ) {
-                Icon(painter = painterResource(R.drawable.outline_filter_list_24),"", Modifier.scale(1.2f))
+                Icon(
+                    painter = painterResource(R.drawable.outline_filter_list_24),
+                    "",
+                    Modifier.scale(1.2f)
+                )
             }
         }
 
@@ -113,31 +118,34 @@ fun SoundScreen(apiService: ApiService) {
             value = searchText,
             onValueChange = {
                 searchText = it
-                loading = true
-                GlobalScope.launch (Dispatchers.IO){
-                    apiService.getMusicList(sortOrder,searchText,action = { music ->
-                        data.clear()
-                        data.addAll(music)
-                        loading = false
-                    })
-                }
             },
-            placeholder = {Text("搜尋")},
-            trailingIcon = {Icon(painter = painterResource(R.drawable.outline_search_24),"")},
+            placeholder = { Text("搜尋") },
+            trailingIcon = { Icon(painter = painterResource(R.drawable.outline_search_24), "") },
             modifier = Modifier.fillMaxWidth()
         )
         if (loading) {
-            CircularProgressIndicator(modifier = Modifier.padding(24.dp).align(Alignment.CenterHorizontally))
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .align(Alignment.CenterHorizontally)
+            )
         }
         if (data.isEmpty()) {
-            Text("無符合的結果", color = Color.Gray, textAlign = TextAlign.Center , modifier = Modifier.fillMaxWidth().padding(12.dp))
+            Text(
+                "無符合的結果",
+                color = Color.Gray,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            )
         }
         data.forEach { music ->
-            Card (
+            Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                modifier = Modifier.padding(0.dp,6.dp)
+                modifier = Modifier.padding(0.dp, 6.dp)
             ) {
-                Row (
+                Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(12.dp)
                 ) {
@@ -149,32 +157,43 @@ fun SoundScreen(apiService: ApiService) {
                                 playingId = -1
                             } else {
                                 player.reset()
-                                player.setDataSource(context, Uri.parse(apiService.endpoint+"/music/audio?music_id=${music.music_id}"),headers)
+                                player.setDataSource(
+                                    context,
+                                    Uri.parse(apiService.endpoint + "/music/audio?music_id=${music.music_id}"),
+                                    headers
+                                )
                                 player.prepareAsync()
                                 playingId = music.music_id
                             }
                         }
                     ) {
-                        Icon(painter = if (playingId == music.music_id) painterResource(R.drawable.baseline_pause_24) else painterResource(R.drawable.outline_play_arrow_24) ,"")
+                        Icon(
+                            painter = if (playingId == music.music_id) painterResource(R.drawable.baseline_pause_24) else painterResource(
+                                R.drawable.outline_play_arrow_24
+                            ), ""
+                        )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text (
+                        Text(
                             text = music.title,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             textAlign = TextAlign.End
                         )
-                        Row (
+                        Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Spacer(modifier = Modifier.weight(1f))
                             Icon(
-                                painter = painterResource(R.drawable.baseline_calendar_month_24),"", modifier = Modifier.scale(0.65f), tint = Color.Gray
+                                painter = painterResource(R.drawable.baseline_calendar_month_24),
+                                "",
+                                modifier = Modifier.scale(0.65f),
+                                tint = Color.Gray
                             )
-                            Text (
+                            Text(
                                 text = music.date,
                                 fontSize = 12.sp,
                                 color = Color.Gray
