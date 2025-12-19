@@ -1,7 +1,7 @@
 package com.example.ambientsoundexplorer.ui.theme
 
-import android.media.AudioAttributes
-import android.media.MediaPlayer
+import android.media.MediaMetadata
+import android.media.session.PlaybackState
 import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,7 +18,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -39,10 +38,11 @@ import androidx.compose.ui.unit.sp
 import com.example.ambientsoundexplorer.ApiService
 import com.example.ambientsoundexplorer.Music
 import com.example.ambientsoundexplorer.PageViewModel
+import com.example.ambientsoundexplorer.Player.mediaSession
+import com.example.ambientsoundexplorer.Player.player
 import com.example.ambientsoundexplorer.PlayerScreen
 import com.example.ambientsoundexplorer.R
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
 
@@ -57,28 +57,15 @@ fun SoundScreen(apiService: ApiService, pageViewModel: PageViewModel) {
     val headers = HashMap<String, String>().apply { put("X-API-KEY", apiService.apiKey) }
     var playingId by remember { mutableStateOf(-1) }
     val mediaController = android.widget.MediaController(context)
-    val player: MediaPlayer = remember { MediaPlayer() }.apply {
-        setOnPreparedListener {
-            it.start()
-        }
-        setAudioAttributes(
-            AudioAttributes.Builder()
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build()
-        )
-        setOnCompletionListener {
-            playingId = -1
-        }
-    }
     LaunchedEffect(searchText) {
         loading = true
         data.clear()
         data.addAll(apiService.getMusicList(sortOrder, searchText))
         loading = false
     }
-    DisposableEffect(Unit) {
-        onDispose {
-            player.stop()
+    LaunchedEffect(Unit) {
+        player.setOnCompletionListener {
+            playingId = -1
         }
     }
     Column(
@@ -168,6 +155,39 @@ fun SoundScreen(apiService: ApiService, pageViewModel: PageViewModel) {
                                     headers
                                 )
                                 player.prepareAsync()
+
+                                scope.launch {
+                                    val stateBuilder = PlaybackState.Builder()
+                                        .setActions(
+                                            PlaybackState.ACTION_PLAY or
+                                                    PlaybackState.ACTION_PAUSE or
+                                                    PlaybackState.ACTION_SKIP_TO_NEXT or
+                                                    PlaybackState.ACTION_SKIP_TO_PREVIOUS
+                                        )
+                                        .setState(
+                                            PlaybackState.STATE_PLAYING,
+                                            player.currentPosition.toLong(),
+                                            1.0f
+                                        )
+                                    mediaSession.setPlaybackState(stateBuilder.build())
+                                    mediaSession.setMetadata(
+                                        MediaMetadata.Builder()
+                                            .putString(
+                                                MediaMetadata.METADATA_KEY_TITLE,
+                                                music.title
+                                            )
+                                            .putString(
+                                                MediaMetadata.METADATA_KEY_ARTIST,
+                                                music.author
+                                            )
+                                            .putBitmap(
+                                                MediaMetadata.METADATA_KEY_ALBUM_ART,
+                                                apiService.getMusicPicture(music.music_id)
+                                            )
+                                            .build()
+                                    )
+                                    mediaSession.isActive = true
+                                }
                                 playingId = music.music_id
                             }
                         }

@@ -69,14 +69,21 @@ class ApiService(val endpoint: String, val apiKey: String) {
                 URL("$endpoint/reminders/${reminder.reminder_id}").openConnection() as HttpURLConnection
             connection.requestMethod = "PATCH"
             connection.setRequestProperty("X-API-KEY", apiKey)
-            connection.setRequestProperty("Content-Type","application/json");
-            OutputStreamWriter(connection.outputStream).apply{write(
-                JSONObject().apply {
-                    put("hour", reminder.hour)
-                    put("minute", reminder.minute)
-                    put("enabled", reminder.enabled)
-                }.toString()
-            );close()}
+            connection.setRequestProperty("Content-Type", "application/json")
+
+
+            OutputStreamWriter(connection.outputStream).apply {
+                write(
+                    JSONObject().apply {
+                        put("hour", reminder.hour)
+                        put("minute", reminder.minute)
+                        put("enabled", reminder.enabled)
+                    }.toString()
+                );
+                close()
+            }
+
+
             val data = connection.inputStream.bufferedReader().readText()
             val obj = JSONObject(data)
             connection.disconnect()

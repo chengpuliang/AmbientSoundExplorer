@@ -17,12 +17,14 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModel
 import com.example.ambientsoundexplorer.ui.theme.AmbientSoundExplorerTheme
@@ -36,6 +38,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val pageViewModel by viewModels<PageViewModel>()
         setContent {
+            Player.init(LocalContext.current)
             AmbientSoundExplorerTheme {
                 Crossfade(pageViewModel.screen) { screen ->
                     screen?.invoke() ?: finish()
@@ -46,12 +49,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-class PageViewModel: ViewModel() {
-    private val screens = mutableStateListOf<@Composable () -> Unit>({MainScreen(this)})
+class PageViewModel : ViewModel() {
+    private val screens = mutableStateListOf<@Composable () -> Unit>({ MainScreen(this) })
     val screen get() = screens.lastOrNull()
     fun push(newScreen: @Composable () -> Unit) {
         screens.add(newScreen)
     }
+
     fun pop() {
         screens.removeLastOrNull()
     }
@@ -95,7 +99,7 @@ fun MainScreen(pageViewModel: PageViewModel) {
             modifier = Modifier.padding(innerPadding)
         ) {
             when (currentPage) {
-                Page.sounds -> SoundScreen(apiService,pageViewModel)
+                Page.sounds -> SoundScreen(apiService, pageViewModel)
                 Page.reminders -> ReminderScreen(apiService)
             }
         }
