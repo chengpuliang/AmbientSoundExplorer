@@ -1,4 +1,4 @@
-package com.example.ambientsoundexplorer
+package com.example.ambientsoundexplorer.services
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -10,8 +10,16 @@ import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 
-class ApiService(val endpoint: String, val apiKey: String) {
+object ApiService {
+    lateinit var endpoint: String
+    lateinit var apiKey: String
+
     enum class sortOrder { ascending, descending }
+
+    fun init(endpoint: String, apiKey: String) {
+        this.endpoint = endpoint
+        this.apiKey = apiKey
+    }
 
     suspend fun getMusicList(sort: sortOrder, filter_term: String = ""): MutableList<Music> =
         withContext(Dispatchers.IO) {
@@ -19,7 +27,7 @@ class ApiService(val endpoint: String, val apiKey: String) {
                 URL("$endpoint/music/list?sort_order=${sort.name}&filter_term=${filter_term}").openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
             connection.setRequestProperty("X-API-KEY", apiKey)
-            val respCode = connection.responseCode
+            connection.responseCode
             val data = connection.inputStream.bufferedReader().readText()
             val result = mutableListOf<Music>()
             val jsonArray = JSONArray(data)
@@ -79,7 +87,7 @@ class ApiService(val endpoint: String, val apiKey: String) {
                         put("minute", reminder.minute)
                         put("enabled", reminder.enabled)
                     }.toString()
-                );
+                )
                 close()
             }
 

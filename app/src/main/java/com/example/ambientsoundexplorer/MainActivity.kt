@@ -17,7 +17,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -27,9 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModel
+import com.example.ambientsoundexplorer.screens.ReminderScreen
+import com.example.ambientsoundexplorer.screens.SoundScreen
+import com.example.ambientsoundexplorer.services.ApiService
+import com.example.ambientsoundexplorer.services.PlayerService
 import com.example.ambientsoundexplorer.ui.theme.AmbientSoundExplorerTheme
-import com.example.ambientsoundexplorer.ui.theme.ReminderScreen
-import com.example.ambientsoundexplorer.ui.theme.SoundScreen
 
 enum class Page { sounds, reminders }
 class MainActivity : ComponentActivity() {
@@ -38,7 +39,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val pageViewModel by viewModels<PageViewModel>()
         setContent {
-            Player.init(LocalContext.current)
+            ApiService.init("http://57.180.75.22:8000", "YZ5TNCN55K")
+            PlayerService.init(LocalContext.current)
             AmbientSoundExplorerTheme {
                 Crossfade(pageViewModel.screen) { screen ->
                     screen?.invoke() ?: finish()
@@ -64,7 +66,6 @@ class PageViewModel : ViewModel() {
 @Composable
 fun MainScreen(pageViewModel: PageViewModel) {
     var currentPage by remember { mutableStateOf(Page.sounds) }
-    val apiService = ApiService("http://57.180.75.22:8000", "YZ5TNCN55K")
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -99,8 +100,8 @@ fun MainScreen(pageViewModel: PageViewModel) {
             modifier = Modifier.padding(innerPadding)
         ) {
             when (currentPage) {
-                Page.sounds -> SoundScreen(apiService, pageViewModel)
-                Page.reminders -> ReminderScreen(apiService)
+                Page.sounds -> SoundScreen(pageViewModel)
+                Page.reminders -> ReminderScreen()
             }
         }
     }
