@@ -1,11 +1,13 @@
 package com.example.ambientsoundexplorer
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.content.Intent
 import android.widget.RemoteViews
-import com.example.ambientsoundexplorer.services.ApiService
 import com.example.ambientsoundexplorer.services.PlayerService
+
 
 /**
  * Implementation of App Widget functionality.
@@ -28,6 +30,14 @@ class PlayBackWidget : AppWidgetProvider() {
 
     override fun onDisabled(context: Context) {
         // Enter relevant functionality for when the last widget is disabled
+    }
+
+    override fun onReceive(context: Context?, intent: Intent?) {
+        super.onReceive(context, intent)
+        println(intent?.action)
+        if (intent?.action.equals("com.example.ambientsoundexplorer.action.WidgetPlayPause")) {
+            if (PlayerService.isPlaying()) PlayerService.pause() else PlayerService.start()
+        }
     }
 }
 

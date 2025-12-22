@@ -10,13 +10,14 @@
     <ImageView
         android:id="@+id/appwidget_artwork"
         android:background="@color/light_blue_900"
-        android:layout_width="48dp"
-        android:layout_height="48dp" />
+        android:layout_width="60dp"
+        android:layout_height="60dp" />
 
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:padding="8dp"
+        android:layout_weight="1"
+        android:paddingLeft="15dp"
         android:orientation="vertical">
 
         <TextView
@@ -25,8 +26,11 @@
             android:layout_height="wrap_content"
             android:contentDescription="@string/appwidget_text"
             android:text="@string/appwidget_text"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary"
+            android:maxLines="1"
+            android:ellipsize="end" />
 
         <TextView
             android:id="@+id/appwidget_artist"
@@ -34,7 +38,7 @@
             android:layout_height="wrap_content"
             android:contentDescription="@string/appwidget_text"
             android:text="@string/appwidget_text"
-            android:textSize="18sp" />
+            android:textSize="14sp" />
     </LinearLayout>
 
     <ImageView
@@ -42,5 +46,25 @@
         android:layout_height="wrap_content"
         android:clickable="true"
         android:foreground="?android:selectableItemBackground"
-        android:src="@drawable/baseline_skip_previous_24" />
+        android:tint="?android:attr/textColorPrimary"
+        android:src="@drawable/baseline_skip_previous_24"
+        android:paddingHorizontal="15dp" />
+
+    <ImageButton
+        android:id="@+id/appwidget_playBtn"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:src="@drawable/baseline_pause_24"
+        android:tint="?android:attr/textColorPrimary"
+        android:paddingHorizontal="15dp" />
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:foreground="?android:selectableItemBackground"
+        android:tint="?android:attr/textColorPrimary"
+        android:src="@drawable/baseline_skip_next_24"
+        android:paddingLeft="15dp" />
+
 </LinearLayout>

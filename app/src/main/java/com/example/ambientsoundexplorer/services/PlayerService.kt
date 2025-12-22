@@ -255,6 +255,20 @@ object PlayerService {
                 intent, PendingIntent.FLAG_IMMUTABLE
             )
         )
+        widgetViews.setImageViewResource(
+            R.id.appwidget_playBtn,
+            if (isPlaying()) R.drawable.baseline_pause_24 else R.drawable.outline_play_arrow_24
+        )
+        widgetViews.setOnClickPendingIntent(
+            R.id.appwidget_playBtn, PendingIntent.getBroadcast(
+                context,
+                0,
+                Intent(context, PlayBackWidget::class.java).apply {
+                    action = "com.example.ambientsoundexplorer.action.WidgetPlayPause"
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        )
         val appWidgetIds =
             appWidgetManager.getAppWidgetIds(ComponentName(context, PlayBackWidget::class.java))
         for (i in appWidgetIds.indices) {

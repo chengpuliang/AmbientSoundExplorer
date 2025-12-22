@@ -196,6 +196,7 @@ fun PlayerScreen(
                         R.drawable.outline_play_arrow_24
                     ),
                     "",
+                    tint = MaterialTheme.colorScheme.inverseOnSurface,
                     modifier = Modifier
                 )
             }
