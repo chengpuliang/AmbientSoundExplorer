@@ -13,12 +13,14 @@ import java.net.URL
 object ApiService {
     lateinit var endpoint: String
     lateinit var apiKey: String
+    var ready = false
 
     enum class sortOrder { ascending, descending }
 
     fun init(endpoint: String, apiKey: String) {
         this.endpoint = endpoint
         this.apiKey = apiKey
+        this.ready = true
     }
 
     suspend fun getMusicList(sort: sortOrder, filter_term: String = ""): MutableList<Music> =

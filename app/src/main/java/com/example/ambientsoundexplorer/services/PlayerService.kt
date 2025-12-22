@@ -1,22 +1,31 @@
 package com.example.ambientsoundexplorer.services
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.media.AudioAttributes
 import android.media.MediaMetadata
 import android.media.MediaPlayer
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
+import android.widget.RemoteViews
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.net.toUri
+import com.example.ambientsoundexplorer.MainActivity
+import com.example.ambientsoundexplorer.PlayBackWidget
 import com.example.ambientsoundexplorer.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 
+@SuppressLint("StaticFieldLeak")
 object PlayerService {
 
     /* ---------- 狀態定義 ---------- */
@@ -46,6 +55,8 @@ object PlayerService {
     private lateinit var context: Context
     private lateinit var mediaSession: MediaSession
     private lateinit var notificationManager: NotificationManager
+    private lateinit var widgetViews: RemoteViews
+    private lateinit var appWidgetManager: AppWidgetManager
 
     private val headers = hashMapOf(
         "X-API-KEY" to ApiService.apiKey
@@ -71,6 +82,7 @@ object PlayerService {
 
             updateMediaSession()
             updatePlaybackState(PlaybackState.STATE_PLAYING)
+            updateWidget()
             showNotification()
         }
 
@@ -112,6 +124,9 @@ object PlayerService {
                 NotificationManager.IMPORTANCE_LOW
             )
         )
+
+        widgetViews = RemoteViews(context.packageName, R.layout.play_back_widget)
+        appWidgetManager = AppWidgetManager.getInstance(context)
     }
 
     /* ---------- 播放 ---------- */
@@ -150,6 +165,7 @@ object PlayerService {
             state = PlayerState.PLAYING
             playing.value = true
             updatePlaybackState(PlaybackState.STATE_PLAYING)
+            updateWidget()
         }
     }
 
@@ -159,6 +175,7 @@ object PlayerService {
             state = PlayerState.PAUSED
             playing.value = false
             updatePlaybackState(PlaybackState.STATE_PAUSED)
+            updateWidget()
         }
     }
 
@@ -225,6 +242,24 @@ object PlayerService {
                 .build()
 
         notificationManager.notify(1, notification)
+    }
+
+    private fun updateWidget() {
+        val intent = Intent(context, MainActivity::class.java)
+        widgetViews.setTextViewText(R.id.appwidget_text, playingMusic!!.title)
+        widgetViews.setTextViewText(R.id.appwidget_artist, playingMusic!!.author)
+        widgetViews.setImageViewBitmap(R.id.appwidget_artwork, playingBitmap!!)
+        widgetViews.setOnClickPendingIntent(
+            R.id.appwidget, PendingIntent.getActivity(
+                context, 0,
+                intent, PendingIntent.FLAG_IMMUTABLE
+            )
+        )
+        val appWidgetIds =
+            appWidgetManager.getAppWidgetIds(ComponentName(context, PlayBackWidget::class.java))
+        for (i in appWidgetIds.indices) {
+            appWidgetManager.updateAppWidget(appWidgetIds[i], widgetViews)
+        }
     }
 
     /* ---------- 給 UI 用 ---------- */
