@@ -21,9 +21,11 @@ import androidx.core.net.toUri
 import com.example.ambientsoundexplorer.MainActivity
 import com.example.ambientsoundexplorer.PlayBackWidget
 import com.example.ambientsoundexplorer.R
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.concurrent.atomic.AtomicBoolean
 
 @SuppressLint("StaticFieldLeak")
 object PlayerService {
@@ -39,8 +41,7 @@ object PlayerService {
         STOPPED
     }
 
-    private var state: PlayerState = PlayerState.IDLE
-    private val preparing = AtomicBoolean(false)
+    var state = MutableStateFlow(PlayerState.IDLE)
 
     /* ---------- 對外狀態 ---------- */
 
@@ -49,7 +50,8 @@ object PlayerService {
         private set
     var playingBitmap: Bitmap? = null
         private set
-
+    private var playlist: List<Music>? = null
+    var playIndex = 0
     /* ---------- Android 物件 ---------- */
 
     private lateinit var context: Context
@@ -73,11 +75,10 @@ object PlayerService {
         )
 
         setOnPreparedListener {
-            state = PlayerState.PREPARED
-            preparing.set(false)
+            state.value = PlayerState.PREPARED
 
             it.start()
-            state = PlayerState.PLAYING
+            state.value = PlayerState.PLAYING
             playing.value = true
 
             updateMediaSession()
@@ -87,12 +88,9 @@ object PlayerService {
         }
 
         setOnCompletionListener {
-            state = PlayerState.STOPPED
-            playing.value = false
-            playingMusic = null
-            playingBitmap = null
-            mediaSession.isActive = false
-            updatePlaybackState(PlaybackState.STATE_STOPPED)
+            CoroutineScope(Dispatchers.IO).launch {
+                playNext()
+            }
         }
 
         setOnErrorListener { _, _, _ ->
@@ -131,48 +129,56 @@ object PlayerService {
 
     /* ---------- 播放 ---------- */
 
-    suspend fun play(music: Music) = withContext(Dispatchers.IO) {
-        if (playingMusic?.music_id == music.music_id &&
-            (state == PlayerState.PLAYING || state == PlayerState.PAUSED)
-        ) return@withContext
-
-        if (!preparing.compareAndSet(false, true)) return@withContext
-        resetInternal()
-
-        try {
-            playingMusic = music
-            playingBitmap = ApiService.getMusicPicture(music.music_id)
-
-            player.setDataSource(
-                context,
-                (ApiService.endpoint + "/music/audio?music_id=${music.music_id}").toUri(),
-                headers
-            )
-
-            state = PlayerState.PREPARING
-            player.prepareAsync()
-
-        } catch (e: Exception) {
-            resetInternal()
-        }
+    suspend fun playPrevious() = withContext(Dispatchers.IO) {
+        if (playIndex == 0) playIndex = playlist!!.size - 1
+        play(playIndex)
     }
+
+    suspend fun playNext() = withContext(Dispatchers.IO) {
+        if (playIndex == playlist!!.size - 1) playIndex = 0
+        play(playIndex)
+    }
+
+
+    suspend fun play(newIndex: Int, newPlaylist: List<Music>? = null) =
+        withContext(Dispatchers.IO) {
+            playIndex = newIndex
+            if (newPlaylist != null) playlist = newPlaylist
+            playingMusic = playlist?.get(playIndex)
+            resetInternal()
+
+            try {
+                playingBitmap = ApiService.getMusicPicture(playingMusic!!.music_id)
+
+                player.setDataSource(
+                    context,
+                    (ApiService.endpoint + "/music/audio?music_id=${playingMusic!!.music_id}").toUri(),
+                    headers
+                )
+
+                state.value = PlayerState.PREPARING
+                player.prepareAsync()
+
+            } catch (e: Exception) {
+                resetInternal()
+            }
+        }
 
     /* ---------- 控制 ---------- */
 
     fun start() {
-        if (state == PlayerState.PREPARED || state == PlayerState.PAUSED) {
+        if (state.value == PlayerState.PREPARED || state.value == PlayerState.PAUSED) {
             player.start()
-            state = PlayerState.PLAYING
-            playing.value = true
+            state.value = PlayerState.PLAYING
             updatePlaybackState(PlaybackState.STATE_PLAYING)
             updateWidget()
         }
     }
 
     fun pause() {
-        if (state == PlayerState.PLAYING) {
+        if (state.value == PlayerState.PLAYING) {
             player.pause()
-            state = PlayerState.PAUSED
+            state.value = PlayerState.PAUSED
             playing.value = false
             updatePlaybackState(PlaybackState.STATE_PAUSED)
             updateWidget()
@@ -180,9 +186,9 @@ object PlayerService {
     }
 
     fun seekTo(pos: Int) {
-        if (state == PlayerState.PLAYING || state == PlayerState.PAUSED) {
+        if (state.value == PlayerState.PLAYING || state.value == PlayerState.PAUSED) {
             player.seekTo(pos)
-            updatePlaybackState(PlaybackState.STATE_PLAYING)
+            updatePlaybackState(if (state.value == PlayerState.PLAYING) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED)
         }
     }
 
@@ -193,8 +199,7 @@ object PlayerService {
             player.reset()
         } catch (_: Exception) {
         }
-        preparing.set(false)
-        state = PlayerState.IDLE
+        state.value = PlayerState.IDLE
         playing.value = false
     }
 
@@ -269,6 +274,26 @@ object PlayerService {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
         )
+        widgetViews.setOnClickPendingIntent(
+            R.id.appwidget_skipPreviousBtn, PendingIntent.getBroadcast(
+                context,
+                0,
+                Intent(context, PlayBackWidget::class.java).apply {
+                    action = "com.example.ambientsoundexplorer.action.WidgetSkipPrevious"
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        )
+        widgetViews.setOnClickPendingIntent(
+            R.id.appwidget_skipNextBtn, PendingIntent.getBroadcast(
+                context,
+                0,
+                Intent(context, PlayBackWidget::class.java).apply {
+                    action = "com.example.ambientsoundexplorer.action.WidgetSkipNext"
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        )
         val appWidgetIds =
             appWidgetManager.getAppWidgetIds(ComponentName(context, PlayBackWidget::class.java))
         for (i in appWidgetIds.indices) {
@@ -278,7 +303,5 @@ object PlayerService {
 
     /* ---------- 給 UI 用 ---------- */
 
-    fun isPlaying(): Boolean = state == PlayerState.PLAYING
-    fun duration(): Int = if (state >= PlayerState.PREPARED) player.duration else 0
-    fun position(): Int = if (state >= PlayerState.PREPARED) player.currentPosition else 0
+    fun isPlaying(): Boolean = state.value == PlayerState.PLAYING
 }

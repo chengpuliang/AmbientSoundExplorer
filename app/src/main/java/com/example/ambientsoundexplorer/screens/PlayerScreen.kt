@@ -70,7 +70,7 @@ fun PlayerScreen(
         reminderData.clear()
         reminderData.addAll(apiService.getReminderList(music_id = music.music_id))
         if (PlayerService.playingMusic != music) {
-            PlayerService.play(music)
+            PlayerService.play(index, music_list)
         }
         while (true) {
             if (player.isPlaying) {
@@ -179,7 +179,7 @@ fun PlayerScreen(
                         PlayerService.pause()
                     } else if (PlayerService.playingMusic == null) {
                         scope.launch {
-                            PlayerService.play(music)
+                            PlayerService.play(index, music_list)
                         }
                     } else {
                         PlayerService.start()

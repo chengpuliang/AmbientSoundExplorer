@@ -22,6 +22,8 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.example.ambientsoundexplorer.action.WidgetPlayPause" />
+                <action android:name="com.example.ambientsoundexplorer.action.WidgetSkipPrevious" />
+                <action android:name="com.example.ambientsoundexplorer.action.WidgetSkipNext" />
             </intent-filter>
 
             <meta-data

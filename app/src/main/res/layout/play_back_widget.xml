@@ -42,13 +42,14 @@
     </LinearLayout>
 
     <ImageView
+        android:id="@+id/appwidget_skipPreviousBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:clickable="true"
         android:foreground="?android:selectableItemBackground"
-        android:tint="?android:attr/textColorPrimary"
+        android:paddingHorizontal="15dp"
         android:src="@drawable/baseline_skip_previous_24"
-        android:paddingHorizontal="15dp" />
+        android:tint="?android:attr/textColorPrimary" />
 
     <ImageButton
         android:id="@+id/appwidget_playBtn"
@@ -59,6 +60,7 @@
         android:paddingHorizontal="15dp" />
 
     <ImageView
+        android:id="@+id/appwidget_skipNextBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:clickable="true"

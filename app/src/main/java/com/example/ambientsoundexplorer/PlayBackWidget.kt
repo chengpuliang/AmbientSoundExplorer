@@ -7,6 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
 import com.example.ambientsoundexplorer.services.PlayerService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 
 /**
@@ -37,6 +40,14 @@ class PlayBackWidget : AppWidgetProvider() {
         println(intent?.action)
         if (intent?.action.equals("com.example.ambientsoundexplorer.action.WidgetPlayPause")) {
             if (PlayerService.isPlaying()) PlayerService.pause() else PlayerService.start()
+        } else if (intent?.action.equals("com.example.ambientsoundexplorer.action.WidgetSkipPrevious")) {
+            CoroutineScope(Dispatchers.IO).launch {
+                PlayerService.playPrevious()
+            }
+        } else if (intent?.action.equals("com.example.ambientsoundexplorer.action.WidgetSkipNext")) {
+            CoroutineScope(Dispatchers.IO).launch {
+                PlayerService.playNext()
+            }
         }
     }
 }
