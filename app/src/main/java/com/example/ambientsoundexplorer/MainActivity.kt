@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val pageViewModel by viewModels<PageViewModel>()
         setContent {
-            ApiService.init("http://192.168.0.123:8000", "KEY2")
+            ApiService.init("http://57.180.75.22:8000", "YZ5TNCN55K")
             PlayerService.init(LocalContext.current)
             AmbientSoundExplorerTheme {
                 Crossfade(pageViewModel.screen) { screen ->
