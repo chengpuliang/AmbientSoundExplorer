@@ -1,6 +1,5 @@
 package com.example.ambientsoundexplorer.services
 
-import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -27,7 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@SuppressLint("StaticFieldLeak")
+
 object PlayerService {
 
     /* ---------- 狀態定義 ---------- */
@@ -37,8 +36,7 @@ object PlayerService {
         PREPARING,
         PREPARED,
         PLAYING,
-        PAUSED,
-        STOPPED
+        PAUSED
     }
 
     var state = MutableStateFlow(PlayerState.IDLE)
@@ -46,8 +44,7 @@ object PlayerService {
     /* ---------- 對外狀態 ---------- */
 
     val playing = mutableStateOf(false)
-    var playingMusic: Music? = null
-        private set
+    val playingMusic: MutableStateFlow<Music?> = MutableStateFlow(null)
     var playingBitmap: Bitmap? = null
         private set
     private var playlist: List<Music>? = null
@@ -73,19 +70,6 @@ object PlayerService {
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build()
         )
-
-        setOnPreparedListener {
-            state.value = PlayerState.PREPARED
-
-            it.start()
-            state.value = PlayerState.PLAYING
-            playing.value = true
-
-            updateMediaSession()
-            updatePlaybackState(PlaybackState.STATE_PLAYING)
-            updateWidget()
-            showNotification()
-        }
 
         setOnCompletionListener {
             CoroutineScope(Dispatchers.IO).launch {
@@ -130,38 +114,41 @@ object PlayerService {
     /* ---------- 播放 ---------- */
 
     suspend fun playPrevious() = withContext(Dispatchers.IO) {
-        if (playIndex == 0) playIndex = playlist!!.size - 1
+        if (playIndex == 0) playIndex = playlist!!.size - 1 else playIndex--
         play(playIndex)
     }
 
     suspend fun playNext() = withContext(Dispatchers.IO) {
-        if (playIndex == playlist!!.size - 1) playIndex = 0
+        if (playIndex == playlist!!.size - 1) playIndex = 0 else playIndex++
         play(playIndex)
     }
 
 
     suspend fun play(newIndex: Int, newPlaylist: List<Music>? = null) =
         withContext(Dispatchers.IO) {
+            println(newIndex)
             playIndex = newIndex
             if (newPlaylist != null) playlist = newPlaylist
-            playingMusic = playlist?.get(playIndex)
+            playingMusic.value = playlist?.get(playIndex)
+            state.value = PlayerState.PREPARING
             resetInternal()
+            playingBitmap = ApiService.getMusicPicture(playingMusic.value!!.music_id)
 
-            try {
-                playingBitmap = ApiService.getMusicPicture(playingMusic!!.music_id)
+            player.setDataSource(
+                context,
+                (ApiService.endpoint + "/music/audio?music_id=${playingMusic.value!!.music_id}").toUri(),
+                headers
+            )
+            player.prepare()
+            state.value = PlayerState.PREPARED
+            player.start()
+            state.value = PlayerState.PLAYING
+            playing.value = true
 
-                player.setDataSource(
-                    context,
-                    (ApiService.endpoint + "/music/audio?music_id=${playingMusic!!.music_id}").toUri(),
-                    headers
-                )
-
-                state.value = PlayerState.PREPARING
-                player.prepareAsync()
-
-            } catch (e: Exception) {
-                resetInternal()
-            }
+            updateMediaSession()
+            updatePlaybackState(PlaybackState.STATE_PLAYING)
+            updateWidget()
+            showNotification()
         }
 
     /* ---------- 控制 ---------- */
@@ -206,8 +193,8 @@ object PlayerService {
     private fun updateMediaSession() {
         mediaSession.setMetadata(
             MediaMetadata.Builder()
-                .putString(MediaMetadata.METADATA_KEY_TITLE, playingMusic?.title)
-                .putString(MediaMetadata.METADATA_KEY_ARTIST, playingMusic?.author)
+                .putString(MediaMetadata.METADATA_KEY_TITLE, playingMusic.value?.title)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, playingMusic.value?.author)
                 .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, playingBitmap)
                 .putLong(MediaMetadata.METADATA_KEY_DURATION, player.duration.toLong())
                 .build()
@@ -240,8 +227,8 @@ object PlayerService {
                         .setMediaSession(mediaSession.sessionToken)
                 )
                 .setSmallIcon(R.drawable.outline_music_note_24)
-                .setContentTitle(playingMusic?.title)
-                .setContentText(playingMusic?.author)
+                .setContentTitle(playingMusic.value?.title)
+                .setContentText(playingMusic.value?.author)
                 .setLargeIcon(playingBitmap)
                 .setOngoing(true)
                 .build()
@@ -251,8 +238,8 @@ object PlayerService {
 
     private fun updateWidget() {
         val intent = Intent(context, MainActivity::class.java)
-        widgetViews.setTextViewText(R.id.appwidget_text, playingMusic!!.title)
-        widgetViews.setTextViewText(R.id.appwidget_artist, playingMusic!!.author)
+        widgetViews.setTextViewText(R.id.appwidget_text, playingMusic.value!!.title)
+        widgetViews.setTextViewText(R.id.appwidget_artist, playingMusic.value!!.author)
         widgetViews.setImageViewBitmap(R.id.appwidget_artwork, playingBitmap!!)
         widgetViews.setOnClickPendingIntent(
             R.id.appwidget, PendingIntent.getActivity(

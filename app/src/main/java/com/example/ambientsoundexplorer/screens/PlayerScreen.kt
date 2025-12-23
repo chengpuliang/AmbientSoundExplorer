@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,7 +46,6 @@ import androidx.compose.ui.unit.sp
 import com.example.ambientsoundexplorer.PageViewModel
 import com.example.ambientsoundexplorer.R
 import com.example.ambientsoundexplorer.services.ApiService
-import com.example.ambientsoundexplorer.services.Music
 import com.example.ambientsoundexplorer.services.PlayerService
 import com.example.ambientsoundexplorer.services.PlayerService.player
 import com.example.ambientsoundexplorer.services.Reminder
@@ -54,24 +54,23 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun PlayerScreen(
-    pageViewModel: PageViewModel,
-    apiService: ApiService,
-    music_list: List<Music>,
-    index: Int
+    pageViewModel: PageViewModel
 ) {
     val scope = rememberCoroutineScope()
-    var currentIndex by remember { mutableStateOf(index) }
-    var music by remember { mutableStateOf(music_list[index]) }
     val bitmap = remember { mutableStateOf<Bitmap?>(null) }
     val reminderData = remember { mutableStateListOf<Reminder>() }
     var playerProgress by remember { mutableFloatStateOf(player.currentPosition.toFloat()) }
-    LaunchedEffect(music.music_id) {
-        bitmap.value = apiService.getMusicPicture(music.music_id)
+    LaunchedEffect(PlayerService.playingMusic.value?.music_id ?: -1) {
+        bitmap.value = ApiService.getMusicPicture(PlayerService.playingMusic.value?.music_id ?: -1)
         reminderData.clear()
-        reminderData.addAll(apiService.getReminderList(music_id = music.music_id))
-        if (PlayerService.playingMusic != music) {
-            PlayerService.play(index, music_list)
-        }
+        reminderData.addAll(
+            ApiService.getReminderList(
+                music_id = PlayerService.playingMusic.value?.music_id ?: -1
+            )
+        )
+        //if (PlayerService.playingMusic != music) {
+        //    PlayerService.play(index, music_list)
+        //}
         while (true) {
             if (player.isPlaying) {
                 playerProgress = player.currentPosition.toFloat()
@@ -100,7 +99,7 @@ fun PlayerScreen(
                 )
             }
             Text(
-                text = music.title,
+                text = PlayerService.playingMusic.value?.title ?: "",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -120,13 +119,13 @@ fun PlayerScreen(
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = music.title,
+            text = PlayerService.playingMusic.value?.title ?: "",
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = music.author,
+            text = PlayerService.playingMusic.value?.author ?: "",
             color = Color.Gray
         )
         Spacer(modifier = Modifier.height(24.dp))
@@ -158,11 +157,7 @@ fun PlayerScreen(
             IconButton(
                 onClick = {
                     scope.launch {
-                        currentIndex--
-                        if (currentIndex < 0) currentIndex = music_list.size - 1
-                        music = music_list[currentIndex]
-                        bitmap.value = ApiService.getMusicPicture(music.music_id)
-                        //PlayerService.play(music)
+                        PlayerService.playPrevious()
                     }
                 },
                 modifier = Modifier.padding(24.dp)
@@ -173,42 +168,39 @@ fun PlayerScreen(
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
-            FilledIconButton(
-                onClick = {
-                    if (player.isPlaying) {
-                        PlayerService.pause()
-                    } else if (PlayerService.playingMusic == null) {
-                        scope.launch {
-                            PlayerService.play(index, music_list)
+            if (PlayerService.state.value == PlayerService.PlayerState.PREPARING) {
+                CircularProgressIndicator()
+            } else {
+                FilledIconButton(
+                    onClick = {
+                        if (player.isPlaying) {
+                            PlayerService.pause()
+                        } else {
+                            PlayerService.start()
                         }
-                    } else {
-                        PlayerService.start()
-                    }
-                },
-                colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primary),
-                shape = CircleShape,
-                modifier = Modifier
-                    .shadow(6.dp, CircleShape)
-                    .size(64.dp)
-            ) {
-                Icon(
-                    painter = if (PlayerService.playing.value) painterResource(R.drawable.baseline_pause_24) else painterResource(
-                        R.drawable.outline_play_arrow_24
-                    ),
-                    "",
-                    tint = MaterialTheme.colorScheme.inverseOnSurface,
+                    },
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = CircleShape,
                     modifier = Modifier
-                )
+                        .shadow(6.dp, CircleShape)
+                        .size(64.dp)
+                ) {
+                    Icon(
+                        painter = if (PlayerService.state.value == PlayerService.PlayerState.PLAYING) painterResource(
+                            R.drawable.baseline_pause_24
+                        ) else painterResource(
+                            R.drawable.outline_play_arrow_24
+                        ),
+                        "",
+                        tint = MaterialTheme.colorScheme.inverseOnSurface,
+                        modifier = Modifier
+                    )
+                }
             }
             IconButton(
                 onClick = {
                     scope.launch {
-                        currentIndex++
-                        if (currentIndex >= music_list.size) currentIndex = 0;
-                        music = music_list[currentIndex]
-                        println(music)
-                        bitmap.value = ApiService.getMusicPicture(music.music_id)
-                        //PlayerService.play(music)
+                        PlayerService.playNext()
                     }
                 },
                 modifier = Modifier.padding(24.dp)
@@ -253,7 +245,7 @@ fun PlayerScreen(
                             checked = it
                             scope.launch {
                                 reminder.enabled = it
-                                checked = apiService.patchReminder(reminder).enabled
+                                checked = ApiService.patchReminder(reminder).enabled
                             }
                         }
                     )

@@ -121,7 +121,15 @@ fun SoundScreen(pageViewModel: PageViewModel) {
             data.forEachIndexed { index, music ->
                 Card(
                     onClick = {
-                        pageViewModel.push { PlayerScreen(pageViewModel, ApiService, data, index) }
+                        scope.launch {
+                            PlayerService.play(index, data)
+                            pageViewModel.push {
+                                PlayerScreen(
+                                    pageViewModel
+                                )
+                            }
+                        }
+
                     },
                     modifier = Modifier.padding(0.dp, 6.dp)
                 ) {
@@ -130,7 +138,7 @@ fun SoundScreen(pageViewModel: PageViewModel) {
                         modifier = Modifier.padding(12.dp)
                     ) {
                         Icon(
-                            painter = if (PlayerService.playingMusic == music && PlayerService.playing.value) painterResource(
+                            painter = if (PlayerService.playingMusic.value == music) painterResource(
                                 R.drawable.baseline_pause_24
                             ) else painterResource(
                                 R.drawable.outline_play_arrow_24
