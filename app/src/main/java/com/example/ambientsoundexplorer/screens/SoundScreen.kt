@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +18,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +50,8 @@ fun SoundScreen(pageViewModel: PageViewModel) {
     val data = remember { mutableStateListOf<Music>() }
     var sortOrder by remember { mutableStateOf(ApiService.sortOrder.ascending) }
     var loading by remember { mutableStateOf(true) }
+    var loadingMusic by remember { mutableStateOf(false) }
+    val playingMusic = PlayerService.playingMusic.collectAsState()
     LaunchedEffect(searchText) {
         loading = true
         data.clear()
@@ -122,7 +126,11 @@ fun SoundScreen(pageViewModel: PageViewModel) {
                 Card(
                     onClick = {
                         scope.launch {
-                            PlayerService.play(index, data)
+                            if (playingMusic.value != music) {
+                                loadingMusic = true
+                                PlayerService.play(index, data)
+                                loadingMusic = false
+                            }
                             pageViewModel.push {
                                 PlayerScreen(
                                     pageViewModel
@@ -137,13 +145,17 @@ fun SoundScreen(pageViewModel: PageViewModel) {
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(12.dp)
                     ) {
-                        Icon(
-                            painter = if (PlayerService.playingMusic.value == music) painterResource(
-                                R.drawable.baseline_pause_24
-                            ) else painterResource(
-                                R.drawable.outline_play_arrow_24
-                            ), "", modifier = Modifier.padding(6.dp)
-                        )
+                        if (loadingMusic && playingMusic.value == music) {
+                            CircularProgressIndicator(modifier = Modifier.size(37.dp))
+                        } else {
+                            Icon(
+                                painter = if (playingMusic.value == music) painterResource(
+                                    R.drawable.baseline_pause_24
+                                ) else painterResource(
+                                    R.drawable.outline_play_arrow_24
+                                ), "", modifier = Modifier.padding(6.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(
                             modifier = Modifier.weight(1f)

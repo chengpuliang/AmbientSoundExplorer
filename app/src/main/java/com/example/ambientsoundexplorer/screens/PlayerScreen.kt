@@ -25,6 +25,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -60,6 +61,7 @@ fun PlayerScreen(
     val bitmap = remember { mutableStateOf<Bitmap?>(null) }
     val reminderData = remember { mutableStateListOf<Reminder>() }
     var playerProgress by remember { mutableFloatStateOf(player.currentPosition.toFloat()) }
+    val playerState = PlayerService.state.collectAsState()
     LaunchedEffect(PlayerService.playingMusic.value?.music_id ?: -1) {
         bitmap.value = ApiService.getMusicPicture(PlayerService.playingMusic.value?.music_id ?: -1)
         reminderData.clear()
@@ -83,7 +85,7 @@ fun PlayerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp)
+            .padding(12.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -168,34 +170,30 @@ fun PlayerScreen(
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
-            if (PlayerService.state.value == PlayerService.PlayerState.PREPARING) {
-                CircularProgressIndicator()
-            } else {
-                FilledIconButton(
-                    onClick = {
-                        if (player.isPlaying) {
-                            PlayerService.pause()
-                        } else {
-                            PlayerService.start()
-                        }
-                    },
-                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = CircleShape,
+            FilledIconButton(
+                onClick = {
+                    if (player.isPlaying) {
+                        PlayerService.pause()
+                    } else {
+                        PlayerService.start()
+                    }
+                },
+                colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primary),
+                shape = CircleShape,
+                modifier = Modifier
+                    .shadow(6.dp, CircleShape)
+                    .size(64.dp)
+            ) {
+                Icon(
+                    painter = if (playerState.value == PlayerService.PlayerState.PLAYING) painterResource(
+                        R.drawable.baseline_pause_24
+                    ) else painterResource(
+                        R.drawable.outline_play_arrow_24
+                    ),
+                    "",
+                    tint = MaterialTheme.colorScheme.inverseOnSurface,
                     modifier = Modifier
-                        .shadow(6.dp, CircleShape)
-                        .size(64.dp)
-                ) {
-                    Icon(
-                        painter = if (PlayerService.state.value == PlayerService.PlayerState.PLAYING) painterResource(
-                            R.drawable.baseline_pause_24
-                        ) else painterResource(
-                            R.drawable.outline_play_arrow_24
-                        ),
-                        "",
-                        tint = MaterialTheme.colorScheme.inverseOnSurface,
-                        modifier = Modifier
-                    )
-                }
+                )
             }
             IconButton(
                 onClick = {

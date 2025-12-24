@@ -1,5 +1,6 @@
 package com.example.ambientsoundexplorer.services
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -27,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 
+@SuppressLint("StaticFieldLeak")
 object PlayerService {
 
     /* ---------- 狀態定義 ---------- */
