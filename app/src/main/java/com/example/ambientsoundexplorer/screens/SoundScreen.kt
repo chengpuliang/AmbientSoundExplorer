@@ -1,5 +1,6 @@
 package com.example.ambientsoundexplorer.screens
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,11 +54,27 @@ fun SoundScreen(pageViewModel: PageViewModel) {
     var loading by remember { mutableStateOf(true) }
     var loadingMusic by remember { mutableStateOf(false) }
     val playingMusic = PlayerService.playingMusic.collectAsState()
+    val context = LocalContext.current as Activity
     LaunchedEffect(searchText) {
         loading = true
         data.clear()
         data.addAll(ApiService.getMusicList(sortOrder, searchText))
         loading = false
+        val intIntent = context.intent.getIntExtra("musicId", -1)
+        if (intIntent != -1) {
+            scope.launch {
+                if (PlayerService.playIndex != intIntent) {
+                    loadingMusic = true
+                    PlayerService.play(intIntent, data)
+                    loadingMusic = false
+                }
+                pageViewModel.push {
+                    PlayerScreen(
+                        pageViewModel
+                    )
+                }
+            }
+        }
     }
     Column(
         modifier = Modifier.padding(20.dp, 0.dp)

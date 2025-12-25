@@ -128,7 +128,6 @@ object PlayerService {
 
     suspend fun play(newIndex: Int, newPlaylist: List<Music>? = null) =
         withContext(Dispatchers.IO) {
-            println(newIndex)
             playIndex = newIndex
             if (newPlaylist != null) playlist = newPlaylist
             playingMusic.value = playlist?.get(playIndex)
@@ -233,13 +232,27 @@ object PlayerService {
                 .setContentText(playingMusic.value?.author)
                 .setLargeIcon(playingBitmap)
                 .setOngoing(true)
+                .setContentIntent(
+                    PendingIntent.getActivity(
+                        context,
+                        0,
+                        Intent(context, MainActivity::class.java).apply {
+                            putExtra(
+                                "musicId",
+                                playIndex
+                            )
+                        },
+                        PendingIntent.FLAG_IMMUTABLE
+                    )
+                )
                 .build()
 
         notificationManager.notify(1, notification)
     }
 
     private fun updateWidget() {
-        val intent = Intent(context, MainActivity::class.java)
+        val intent =
+            Intent(context, MainActivity::class.java).apply { putExtra("musicId", playIndex) }
         widgetViews.setTextViewText(R.id.appwidget_text, playingMusic.value!!.title)
         widgetViews.setTextViewText(R.id.appwidget_artist, playingMusic.value!!.author)
         widgetViews.setImageViewBitmap(R.id.appwidget_artwork, playingBitmap!!)
