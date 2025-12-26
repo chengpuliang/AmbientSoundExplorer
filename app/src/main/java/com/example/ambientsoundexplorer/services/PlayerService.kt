@@ -31,8 +31,6 @@ import kotlinx.coroutines.withContext
 @SuppressLint("StaticFieldLeak")
 object PlayerService {
 
-    /* ---------- 狀態定義 ---------- */
-
     enum class PlayerState {
         IDLE,
         PREPARING,
@@ -43,15 +41,12 @@ object PlayerService {
 
     var state = MutableStateFlow(PlayerState.IDLE)
 
-    /* ---------- 對外狀態 ---------- */
-
     val playing = mutableStateOf(false)
     val playingMusic: MutableStateFlow<Music?> = MutableStateFlow(null)
     var playingBitmap: Bitmap? = null
         private set
     private var playlist: List<Music>? = null
-    var playIndex = 0
-    /* ---------- Android 物件 ---------- */
+    var playIndex = -1
 
     private lateinit var context: Context
     private lateinit var mediaSession: MediaSession
@@ -62,8 +57,6 @@ object PlayerService {
     private val headers = hashMapOf(
         "X-API-KEY" to ApiService.apiKey
     )
-
-    /* ---------- MediaPlayer ---------- */
 
     val player: MediaPlayer = MediaPlayer().apply {
 
@@ -85,7 +78,6 @@ object PlayerService {
         }
     }
 
-    /* ---------- 初始化 ---------- */
 
     fun init(context: Context) {
         this.context = context.applicationContext
@@ -95,6 +87,17 @@ object PlayerService {
                 override fun onPlay() = start()
                 override fun onPause() = pause()
                 override fun onSeekTo(pos: Long) = seekTo(pos.toInt())
+                override fun onSkipToPrevious() {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        playPrevious()
+                    }
+                }
+
+                override fun onSkipToNext() {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        playNext()
+                    }
+                }
             })
         }
 
@@ -109,11 +112,18 @@ object PlayerService {
             )
         )
 
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                "Reminder",
+                "提醒",
+                NotificationManager.IMPORTANCE_LOW
+            )
+        )
+
         widgetViews = RemoteViews(context.packageName, R.layout.play_back_widget)
         appWidgetManager = AppWidgetManager.getInstance(context)
     }
 
-    /* ---------- 播放 ---------- */
 
     suspend fun playPrevious() = withContext(Dispatchers.IO) {
         if (playIndex == 0) playIndex = playlist!!.size - 1 else playIndex--
@@ -131,6 +141,7 @@ object PlayerService {
             playIndex = newIndex
             if (newPlaylist != null) playlist = newPlaylist
             playingMusic.value = playlist?.get(playIndex)
+            println(playingMusic.value)
             state.value = PlayerState.PREPARING
             resetInternal()
             playingBitmap = ApiService.getMusicPicture(playingMusic.value!!.music_id)
@@ -152,7 +163,6 @@ object PlayerService {
             showNotification()
         }
 
-    /* ---------- 控制 ---------- */
 
     fun start() {
         if (state.value == PlayerState.PREPARED || state.value == PlayerState.PAUSED) {
@@ -180,7 +190,6 @@ object PlayerService {
         }
     }
 
-    /* ---------- 內部工具 ---------- */
 
     private fun resetInternal() {
         try {
@@ -209,7 +218,9 @@ object PlayerService {
                 .setActions(
                     PlaybackState.ACTION_PLAY or
                             PlaybackState.ACTION_PAUSE or
-                            PlaybackState.ACTION_SEEK_TO
+                            PlaybackState.ACTION_SEEK_TO or
+                            PlaybackState.ACTION_SKIP_TO_PREVIOUS or
+                            PlaybackState.ACTION_SKIP_TO_NEXT
                 )
                 .setState(
                     state,
@@ -239,7 +250,7 @@ object PlayerService {
                         Intent(context, MainActivity::class.java).apply {
                             putExtra(
                                 "musicId",
-                                playIndex
+                                playingMusic.value!!.music_id
                             )
                         },
                         PendingIntent.FLAG_IMMUTABLE
@@ -251,15 +262,21 @@ object PlayerService {
     }
 
     private fun updateWidget() {
+        println("Widget: " + playingMusic.value!!.music_id)
         val intent =
-            Intent(context, MainActivity::class.java).apply { putExtra("musicId", playIndex) }
+            Intent(context, MainActivity::class.java).apply {
+                putExtra(
+                    "musicId",
+                    playingMusic.value!!.music_id
+                )
+            }
         widgetViews.setTextViewText(R.id.appwidget_text, playingMusic.value!!.title)
         widgetViews.setTextViewText(R.id.appwidget_artist, playingMusic.value!!.author)
         widgetViews.setImageViewBitmap(R.id.appwidget_artwork, playingBitmap!!)
         widgetViews.setOnClickPendingIntent(
             R.id.appwidget, PendingIntent.getActivity(
                 context, 0,
-                intent, PendingIntent.FLAG_IMMUTABLE
+                intent, PendingIntent.FLAG_MUTABLE
             )
         )
         widgetViews.setImageViewResource(
@@ -302,8 +319,6 @@ object PlayerService {
             appWidgetManager.updateAppWidget(appWidgetIds[i], widgetViews)
         }
     }
-
-    /* ---------- 給 UI 用 ---------- */
 
     fun isPlaying(): Boolean = state.value == PlayerState.PLAYING
 }

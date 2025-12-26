@@ -1,6 +1,7 @@
 package com.example.ambientsoundexplorer.screens
 
 import android.app.Activity
+import android.content.Intent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,7 +37,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ambientsoundexplorer.AlarmReceiver
 import com.example.ambientsoundexplorer.PageViewModel
+import com.example.ambientsoundexplorer.PlayBackWidget
 import com.example.ambientsoundexplorer.R
 import com.example.ambientsoundexplorer.services.ApiService
 import com.example.ambientsoundexplorer.services.Music
@@ -59,13 +62,16 @@ fun SoundScreen(pageViewModel: PageViewModel) {
         loading = true
         data.clear()
         data.addAll(ApiService.getMusicList(sortOrder, searchText))
+        println(data.toList())
         loading = false
         val intIntent = context.intent.getIntExtra("musicId", -1)
+        println("intent: $intIntent")
         if (intIntent != -1) {
+            context.intent.removeExtra("musicId")
             scope.launch {
-                if (PlayerService.playIndex != intIntent) {
+                if (PlayerService.playingMusic.value?.music_id != intIntent) {
                     loadingMusic = true
-                    PlayerService.play(intIntent, data)
+                    PlayerService.play(data.indexOfFirst { it.music_id == intIntent }, data)
                     loadingMusic = false
                 }
                 pageViewModel.push {
@@ -91,6 +97,23 @@ fun SoundScreen(pageViewModel: PageViewModel) {
                 fontSize = 24.sp,
                 modifier = Modifier.weight(1f)
             )
+            IconButton(
+                onClick = {
+                    context.sendBroadcast(
+                        Intent(context, AlarmReceiver::class.java).apply {
+                            action = "com.example.ambientsoundexplorer.alarm"
+                            putExtra("musicTitle", "ASD")
+                            putExtra("musicId", 1)
+                        }
+                    )
+                },
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.outline_timer_24),
+                    "",
+                    Modifier.scale(1.2f)
+                )
+            }
             IconButton(
                 onClick = {
                     loading = true

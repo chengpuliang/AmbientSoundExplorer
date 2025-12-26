@@ -1,5 +1,6 @@
 package com.example.ambientsoundexplorer
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -48,6 +49,10 @@ class MainActivity : ComponentActivity() {
                 BackHandler(onBack = pageViewModel::pop)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
     }
 }
 

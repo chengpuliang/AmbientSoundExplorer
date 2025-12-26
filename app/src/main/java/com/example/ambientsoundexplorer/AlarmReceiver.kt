@@ -16,6 +16,7 @@ class AlarmReceiver : BroadcastReceiver() {
             notificationManager.notify(
                 0, Notification.Builder(context, "Reminder")
                     .setContentTitle("該聽 " + intent.getStringExtra("musicTitle") + " 囉！")
+                    .setSmallIcon(R.drawable.outline_music_note_24)
                     .setContentIntent(
                         PendingIntent.getActivity(
                             context,
@@ -23,8 +24,11 @@ class AlarmReceiver : BroadcastReceiver() {
                             Intent(
                                 context.applicationContext,
                                 MainActivity::class.java
-                            ).apply { putExtra("musicId", intent.getIntExtra("musicId", 0)) },
-                            PendingIntent.FLAG_IMMUTABLE
+                            ).apply {
+                                putExtra("musicId", intent.getIntExtra("musicId", 0))
+                                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            },
+                            PendingIntent.FLAG_MUTABLE
                         )
                     )
                     .build()

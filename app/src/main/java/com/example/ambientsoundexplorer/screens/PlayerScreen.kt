@@ -63,6 +63,7 @@ fun PlayerScreen(
     var playerProgress by remember { mutableFloatStateOf(player.currentPosition.toFloat()) }
     val playerState = PlayerService.state.collectAsState()
     LaunchedEffect(PlayerService.playingMusic.value?.music_id ?: -1) {
+        println("PlayerScreen")
         bitmap.value = ApiService.getMusicPicture(PlayerService.playingMusic.value?.music_id ?: -1)
         reminderData.clear()
         reminderData.addAll(
