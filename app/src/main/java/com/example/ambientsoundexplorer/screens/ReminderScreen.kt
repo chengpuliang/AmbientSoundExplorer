@@ -1,5 +1,9 @@
 package com.example.ambientsoundexplorer.screens
 
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
@@ -21,14 +25,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ambientsoundexplorer.AlarmReceiver
 import com.example.ambientsoundexplorer.services.ApiService
 import com.example.ambientsoundexplorer.services.Music
 import com.example.ambientsoundexplorer.services.Reminder
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 @Composable
 fun ReminderScreen() {
@@ -36,12 +43,41 @@ fun ReminderScreen() {
     val musicData = remember { mutableStateListOf<Music>() }
     var loading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
         musicData.clear()
         musicData.addAll(ApiService.getMusicList(ApiService.sortOrder.ascending))
         data.clear()
         data.addAll(ApiService.getReminderList())
         loading = false
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancelAll()
+        for (i in data) {
+            if (i.enabled) {
+                val calendar = Calendar.getInstance()
+                calendar.set(Calendar.HOUR_OF_DAY, i.hour)
+                calendar.set(Calendar.MINUTE, i.minute)
+                calendar.set(Calendar.SECOND, 0)
+                alarmManager.setRepeating(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    AlarmManager.INTERVAL_DAY,
+                    PendingIntent.getBroadcast(
+                        context,
+                        0,
+                        Intent(context, AlarmReceiver::class.java).apply {
+                            action = "com.example.ambientsoundexplorer.alarm"
+                            putExtra(
+                                "musicTitle",
+                                musicData.find { it.music_id == i.music_id }?.title
+                            )
+                            putExtra("musicId", i.music_id)
+                        },
+                        PendingIntent.FLAG_MUTABLE
+                    )
+                )
+            }
+        }
     }
     Column(
         modifier = Modifier.padding(20.dp, 0.dp)
@@ -82,7 +118,7 @@ fun ReminderScreen() {
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = "${reminder.hour}:${reminder.minute}",
+                                text = "%02d:%02d".format(reminder.hour, reminder.minute),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
                                 textAlign = TextAlign.End
