@@ -15,14 +15,15 @@ import android.media.MediaMetadata
 import android.media.MediaPlayer
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
+import android.util.Log
 import android.widget.RemoteViews
-import androidx.compose.runtime.mutableStateOf
 import androidx.core.net.toUri
 import com.example.ambientsoundexplorer.MainActivity
 import com.example.ambientsoundexplorer.PlayBackWidget
 import com.example.ambientsoundexplorer.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,10 +42,8 @@ object PlayerService {
 
     var state = MutableStateFlow(PlayerState.IDLE)
 
-    val playing = mutableStateOf(false)
     val playingMusic: MutableStateFlow<Music?> = MutableStateFlow(null)
-    var playingBitmap: Bitmap? = null
-        private set
+    val playingBitmap: MutableStateFlow<Bitmap?> = MutableStateFlow(null)
     private var playlist: List<Music>? = null
     var playIndex = -1
 
@@ -57,6 +56,9 @@ object PlayerService {
     private val headers = hashMapOf(
         "X-API-KEY" to ApiService.apiKey
     )
+
+    private val serviceScope =
+        CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val player: MediaPlayer = MediaPlayer().apply {
 
@@ -88,13 +90,13 @@ object PlayerService {
                 override fun onPause() = pause()
                 override fun onSeekTo(pos: Long) = seekTo(pos.toInt())
                 override fun onSkipToPrevious() {
-                    CoroutineScope(Dispatchers.IO).launch {
+                    serviceScope.launch {
                         playPrevious()
                     }
                 }
 
                 override fun onSkipToNext() {
-                    CoroutineScope(Dispatchers.IO).launch {
+                    serviceScope.launch {
                         playNext()
                     }
                 }
@@ -116,7 +118,7 @@ object PlayerService {
             NotificationChannel(
                 "Reminder",
                 "提醒",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_HIGH
             )
         )
 
@@ -138,13 +140,13 @@ object PlayerService {
 
     suspend fun play(newIndex: Int, newPlaylist: List<Music>? = null) =
         withContext(Dispatchers.IO) {
+            //if ()
             playIndex = newIndex
             if (newPlaylist != null) playlist = newPlaylist
             playingMusic.value = playlist?.get(playIndex)
-            println(playingMusic.value)
             state.value = PlayerState.PREPARING
             resetInternal()
-            playingBitmap = ApiService.getMusicPicture(playingMusic.value!!.music_id)
+            playingBitmap.value = ApiService.getMusicPicture(playingMusic.value!!.music_id)
 
             player.setDataSource(
                 context,
@@ -155,7 +157,6 @@ object PlayerService {
             state.value = PlayerState.PREPARED
             player.start()
             state.value = PlayerState.PLAYING
-            playing.value = true
 
             updateMediaSession()
             updatePlaybackState(PlaybackState.STATE_PLAYING)
@@ -165,6 +166,7 @@ object PlayerService {
 
 
     fun start() {
+        println("Start Player")
         if (state.value == PlayerState.PREPARED || state.value == PlayerState.PAUSED) {
             player.start()
             state.value = PlayerState.PLAYING
@@ -177,7 +179,6 @@ object PlayerService {
         if (state.value == PlayerState.PLAYING) {
             player.pause()
             state.value = PlayerState.PAUSED
-            playing.value = false
             updatePlaybackState(PlaybackState.STATE_PAUSED)
             updateWidget()
         }
@@ -197,7 +198,6 @@ object PlayerService {
         } catch (_: Exception) {
         }
         state.value = PlayerState.IDLE
-        playing.value = false
     }
 
     private fun updateMediaSession() {
@@ -205,7 +205,7 @@ object PlayerService {
             MediaMetadata.Builder()
                 .putString(MediaMetadata.METADATA_KEY_TITLE, playingMusic.value?.title)
                 .putString(MediaMetadata.METADATA_KEY_ARTIST, playingMusic.value?.author)
-                .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, playingBitmap)
+                .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, playingBitmap.value)
                 .putLong(MediaMetadata.METADATA_KEY_DURATION, player.duration.toLong())
                 .build()
         )
@@ -241,7 +241,7 @@ object PlayerService {
                 .setSmallIcon(R.drawable.outline_music_note_24)
                 .setContentTitle(playingMusic.value?.title)
                 .setContentText(playingMusic.value?.author)
-                .setLargeIcon(playingBitmap)
+                .setLargeIcon(playingBitmap.value)
                 .setOngoing(true)
                 .setContentIntent(
                     PendingIntent.getActivity(
@@ -262,7 +262,6 @@ object PlayerService {
     }
 
     private fun updateWidget() {
-        println("Widget: " + playingMusic.value!!.music_id)
         val intent =
             Intent(context, MainActivity::class.java).apply {
                 putExtra(
@@ -272,11 +271,11 @@ object PlayerService {
             }
         widgetViews.setTextViewText(R.id.appwidget_text, playingMusic.value!!.title)
         widgetViews.setTextViewText(R.id.appwidget_artist, playingMusic.value!!.author)
-        widgetViews.setImageViewBitmap(R.id.appwidget_artwork, playingBitmap!!)
+        widgetViews.setImageViewBitmap(R.id.appwidget_artwork, playingBitmap.value)
         widgetViews.setOnClickPendingIntent(
             R.id.appwidget, PendingIntent.getActivity(
                 context, 0,
-                intent, PendingIntent.FLAG_MUTABLE
+                intent, PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
         )
         widgetViews.setImageViewResource(

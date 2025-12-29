@@ -19,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,12 +34,13 @@ import com.example.ambientsoundexplorer.services.ApiService
 import com.example.ambientsoundexplorer.services.PlayerService
 import com.example.ambientsoundexplorer.ui.theme.AmbientSoundExplorerTheme
 
-enum class Page { sounds, reminders }
+enum class Page { Sounds, Reminders }
 class MainActivity : ComponentActivity() {
+    val pageViewModel by viewModels<PageViewModel>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val pageViewModel by viewModels<PageViewModel>()
+        pageViewModel.pendingMusicId = intent.getIntExtra("musicId", -1)
         setContent {
             ApiService.init("http://57.180.75.22:8000", "YZ5TNCN55K")
             PlayerService.init(LocalContext.current)
@@ -53,12 +55,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        pageViewModel.pendingMusicId = intent.getIntExtra("musicId", -1)
     }
 }
 
 class PageViewModel : ViewModel() {
     private val screens = mutableStateListOf<@Composable () -> Unit>({ MainScreen(this) })
     val screen get() = screens.lastOrNull()
+    var pendingMusicId by mutableIntStateOf(-1)
     fun push(newScreen: @Composable () -> Unit) {
         screens.add(newScreen)
     }
@@ -66,19 +70,21 @@ class PageViewModel : ViewModel() {
     fun pop() {
         screens.removeLastOrNull()
     }
+
+
 }
 
 @Composable
 fun MainScreen(pageViewModel: PageViewModel) {
-    var currentPage by remember { mutableStateOf(Page.sounds) }
+    var currentPage by remember { mutableStateOf(Page.Sounds) }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             NavigationBar(windowInsets = NavigationBarDefaults.windowInsets) {
                 NavigationBarItem(
-                    selected = currentPage == Page.sounds,
+                    selected = currentPage == Page.Sounds,
                     onClick = {
-                        currentPage = Page.sounds
+                        currentPage = Page.Sounds
                     },
                     icon = {
                         Icon(
@@ -89,10 +95,8 @@ fun MainScreen(pageViewModel: PageViewModel) {
                     label = { Text("環境音效") }
                 )
                 NavigationBarItem(
-                    selected = currentPage == Page.reminders,
-                    onClick = {
-                        currentPage = Page.reminders
-                    },
+                    selected = currentPage == Page.Reminders,
+                    onClick = { currentPage = Page.Reminders },
                     icon = {
                         Icon(painter = painterResource(R.drawable.outline_timer_24), "")
                     },
@@ -105,8 +109,8 @@ fun MainScreen(pageViewModel: PageViewModel) {
             modifier = Modifier.padding(innerPadding)
         ) {
             when (currentPage) {
-                Page.sounds -> SoundScreen(pageViewModel)
-                Page.reminders -> ReminderScreen()
+                Page.Sounds -> SoundScreen(pageViewModel)
+                Page.Reminders -> ReminderScreen()
             }
         }
     }

@@ -28,7 +28,7 @@ class AlarmReceiver : BroadcastReceiver() {
                                 putExtra("musicId", intent.getIntExtra("musicId", 0))
                                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                             },
-                            PendingIntent.FLAG_MUTABLE
+                            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                         )
                     )
                     .build()

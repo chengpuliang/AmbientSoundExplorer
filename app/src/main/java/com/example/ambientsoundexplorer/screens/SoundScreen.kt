@@ -1,14 +1,11 @@
 package com.example.ambientsoundexplorer.screens
 
-import android.app.Activity
-import android.content.Intent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -31,15 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ambientsoundexplorer.AlarmReceiver
 import com.example.ambientsoundexplorer.PageViewModel
-import com.example.ambientsoundexplorer.PlayBackWidget
 import com.example.ambientsoundexplorer.R
 import com.example.ambientsoundexplorer.services.ApiService
 import com.example.ambientsoundexplorer.services.Music
@@ -55,30 +49,21 @@ fun SoundScreen(pageViewModel: PageViewModel) {
     val data = remember { mutableStateListOf<Music>() }
     var sortOrder by remember { mutableStateOf(ApiService.sortOrder.ascending) }
     var loading by remember { mutableStateOf(true) }
-    var loadingMusic by remember { mutableStateOf(false) }
     val playingMusic = PlayerService.playingMusic.collectAsState()
-    val context = LocalContext.current as Activity
     LaunchedEffect(searchText) {
         loading = true
         data.clear()
         data.addAll(ApiService.getMusicList(sortOrder, searchText))
-        println(data.toList())
         loading = false
-        val intIntent = context.intent.getIntExtra("musicId", -1)
-        println("intent: $intIntent")
-        if (intIntent != -1) {
-            context.intent.removeExtra("musicId")
-            scope.launch {
-                if (PlayerService.playingMusic.value?.music_id != intIntent) {
-                    loadingMusic = true
-                    PlayerService.play(data.indexOfFirst { it.music_id == intIntent }, data)
-                    loadingMusic = false
-                }
-                pageViewModel.push {
-                    PlayerScreen(
-                        pageViewModel
-                    )
-                }
+    }
+    LaunchedEffect(data.toList(), pageViewModel.pendingMusicId) {
+        if (pageViewModel.pendingMusicId != -1 && data.isNotEmpty()) {
+            pageViewModel.push {
+                PlayerScreen(
+                    pageViewModel,
+                    data,
+                    data.indexOfFirst { it.music_id == pageViewModel.pendingMusicId }
+                )
             }
         }
     }
@@ -97,23 +82,6 @@ fun SoundScreen(pageViewModel: PageViewModel) {
                 fontSize = 24.sp,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(
-                onClick = {
-                    context.sendBroadcast(
-                        Intent(context, AlarmReceiver::class.java).apply {
-                            action = "com.example.ambientsoundexplorer.alarm"
-                            putExtra("musicTitle", "ASD")
-                            putExtra("musicId", 1)
-                        }
-                    )
-                },
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.outline_timer_24),
-                    "",
-                    Modifier.scale(1.2f)
-                )
-            }
             IconButton(
                 onClick = {
                     loading = true
@@ -166,19 +134,9 @@ fun SoundScreen(pageViewModel: PageViewModel) {
             data.forEachIndexed { index, music ->
                 Card(
                     onClick = {
-                        scope.launch {
-                            if (playingMusic.value != music) {
-                                loadingMusic = true
-                                PlayerService.play(index, data)
-                                loadingMusic = false
-                            }
-                            pageViewModel.push {
-                                PlayerScreen(
-                                    pageViewModel
-                                )
-                            }
+                        pageViewModel.push {
+                            PlayerScreen(pageViewModel, data, index)
                         }
-
                     },
                     modifier = Modifier.padding(0.dp, 6.dp)
                 ) {
@@ -186,17 +144,13 @@ fun SoundScreen(pageViewModel: PageViewModel) {
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(12.dp)
                     ) {
-                        if (loadingMusic && playingMusic.value == music) {
-                            CircularProgressIndicator(modifier = Modifier.size(37.dp))
-                        } else {
-                            Icon(
-                                painter = if (playingMusic.value == music) painterResource(
-                                    R.drawable.baseline_pause_24
-                                ) else painterResource(
-                                    R.drawable.outline_play_arrow_24
-                                ), "", modifier = Modifier.padding(6.dp)
-                            )
-                        }
+                        Icon(
+                            painter = if (playingMusic.value == music) painterResource(
+                                R.drawable.baseline_pause_24
+                            ) else painterResource(
+                                R.drawable.outline_play_arrow_24
+                            ), "", modifier = Modifier.padding(6.dp)
+                        )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(
                             modifier = Modifier.weight(1f)
